@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,10 +23,38 @@ def home():
 
 @app.post("/recommend")
 def recommend(data: QuizInput):
-    if data.skin_type == "oily" and data.concern == "acne":
-        return {
-            "cleanser": "Salicylic Cleanser",
-            "serum": "Niacinamide Serum",
-            "moisturizer": "Oil-Free Moisturizer"
-        }
-    return {"message": "Basic recommendation"}
+    skin = data.skin_type.lower()
+    concern = data.concern.lower()
+    sensitive = data.sensitivity.lower()
+
+    routine = {}
+
+    # Cleanser
+    if skin == "oily":
+        routine["Cleanser"] = "Salicylic Cleanser"
+    elif skin == "dry":
+        routine["Cleanser"] = "Hydrating Cleanser"
+    else:
+        routine["Cleanser"] = "Gentle Cleanser"
+
+    # Serum
+    if concern == "acne":
+        routine["Serum"] = "Niacinamide Serum"
+    elif concern == "pigmentation":
+        routine["Serum"] = "Vitamin C Serum"
+    elif concern == "wrinkles":
+        routine["Serum"] = "Retinol Serum"
+    else:
+        routine["Serum"] = "Basic Serum"
+
+    # Moisturizer
+    if sensitive == "yes":
+        routine["Moisturizer"] = "Fragrance-Free Moisturizer"
+    elif skin == "oily":
+        routine["Moisturizer"] = "Oil-Free Moisturizer"
+    else:
+        routine["Moisturizer"] = "Hydrating Moisturizer"
+
+    return {
+        "recommendation": routine
+    }
