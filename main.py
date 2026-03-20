@@ -5,11 +5,13 @@ from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ CORS (keep this)
+# ✅ CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -21,64 +23,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Input model
+# ✅ Input Model
 class QuizInput(BaseModel):
     skin_type: str
     concern: str
     sensitivity: str
 
-# ✅ OpenAI client (IMPORTANT: replace API key)
+# ✅ OpenAI Client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ✅ Health Check
 @app.get("/")
 def home():
     return {"message": "Backend running 🚀"}
-# ✅ AI-based recommendation
+
+# ✅ Recommendation API
 @app.post("/recommend")
 def recommend(data: QuizInput):
     try:
         prompt = f"""
-        Give a SHORT skincare routine.
+        Suggest a skincare routine.
 
         Skin Type: {data.skin_type}
         Concern: {data.concern}
         Sensitivity: {data.sensitivity}
 
-        Respond ONLY in JSON format like:
+        Respond ONLY in VALID JSON format:
         {{
-          "Cleanser": "...",
-          "Moisturizer": "...",
-          "Sunscreen": "..."
+          "Cleanser": "short name",
+          "Moisturizer": "short name",
+          "Sunscreen": "short name"
         }}
         """
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # ✅ faster model
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
         )
 
-        ai_text = response.choices[0].message.content
+        ai_text = response.choices[0].message.content.strip()
 
-        # ✅ Convert AI text → JSON
+        # ✅ Clean response (remove ```json if present)
+        if ai_text.startswith("```"):
+            ai_text = ai_text.replace("```json", "").replace("```", "").strip()
+
+        # ✅ Convert to JSON
         try:
             ai_json = json.loads(ai_text)
-        except:
-            # fallback if parsing fails
+        except Exception as parse_error:
+            print("JSON Parse Error:", parse_error)
+            print("AI Response:", ai_text)
+
+            # fallback
             ai_json = {
                 "Cleanser": "Gentle Cleanser",
-                "Moisturizer": "Daily Moisturizer",
+                "Moisturizer": "Hydrating Moisturizer",
                 "Sunscreen": "SPF 50 Sunscreen"
             }
 
         return {"recommendation": ai_json}
 
     except Exception as e:
+        print("SERVER ERROR:", str(e))
+
         return {
             "recommendation": {
-                "Cleanser": "Error Cleanser",
-                "Moisturizer": "Error Moisturizer",
-                "Sunscreen": "Error Sunscreen"
-            },
-            "error": str(e)
+                "Cleanser": "Gentle Cleanser",
+                "Moisturizer": "Hydrating Moisturizer",
+                "Sunscreen": "SPF 50 Sunscreen"
+            }
         }
